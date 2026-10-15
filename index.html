@@ -3971,3 +3971,154 @@ loop();
 </script>
 </body>
 </html>
+// ===== CHAPTER 6 CODE (Sky Fighters 3D) =====
+// Core functions added for Chapter 6. See the HOOKS section at the bottom for the small lines added inside existing code.
+
+function startCh6(){
+  if(!(SAVE.story&&SAVE.story.ch5))return;
+  audioInit();mode='infinite';capital=false;story=false;squad=false;missionMode=null;
+  reset();
+  $('title').classList.add('hide');
+  seq={t:0,objs:[],line:null,flash:1,ch2:true,ch3:true,ch6:true,phase:'brief',bolts:[],guards:[],meds:[],dots:[],subT:0,walk:0,lockMsg:-9};
+  startFps();
+}
+
+function finishCh6(){
+  const s=seq;
+  fpsCleanup();s.objs.forEach(o=>scene.remove(o));
+  ['barT','barB','sub','skip'].forEach(id=>{$(id).style.display='none'});
+  document.getElementById('flash').style.opacity=0;
+  state='finished';seq=null;
+  $('playNext').classList.add('hide');
+  $('overTitle').textContent='Chapter 6: Intro';
+  $('result').textContent='You boarded the flagship Resolute and reported to the map room, where the Admiral showed you the holographic galaxy map and the enemy fleet in Sector 7-Gamma. The mission itself is coming soon.';
+  setTimeout(()=>$('over').classList.remove('hide'),500);
+}
+
+function fpsBuildMap6(){
+  const g=fpsBuildMap2();
+  for(let r=1;r<=7;r++)for(let c=2;c<=9;c++)g[r][c]='.';
+  g[1][10]='D';g[2][10]='D';
+  return g;
+}
+
+function buildMapRoom(g){
+  const cx=FOX+6*FT,cz=FOZ+4.5*FT;
+  const M=(c)=>new THREE.MeshStandardMaterial({color:c,metalness:.5,roughness:.4,flatShading:true});
+  const dark=M(0x10202e),cy=new THREE.MeshBasicMaterial({color:0x76efff});
+  const add=(geo,mat,x,y,z,r,p)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(r)m.rotation.set(r[0],r[1],r[2]);(p||g).add(m);return m};
+  add(new THREE.CylinderGeometry(9,9.4,.45,40),dark,cx,.22,cz);
+  add(new THREE.TorusGeometry(9.2,.18,8,64),cy,cx,.5,cz,[Math.PI/2,0,0]);
+  add(new THREE.CylinderGeometry(2.2,2.8,1.4,24),dark,cx,1.1,cz);
+  add(new THREE.TorusGeometry(2.3,.12,8,40),cy,cx,1.85,cz,[Math.PI/2,0,0]);
+  add(new THREE.RingGeometry(11.8,12,64),new THREE.MeshBasicMaterial({color:0x2a8fff,side:THREE.DoubleSide}),cx,.06,cz,[-Math.PI/2,0,0]);
+  add(new THREE.TorusGeometry(9,.25,8,64),cy,cx,FT-.3,cz,[Math.PI/2,0,0]);
+  buildGalaxyHolo(g,cx,3.4,cz);
+  const pl=new THREE.PointLight(0x66e0ff,1.4,55);pl.position.set(cx,4,cz);g.add(pl);
+  const lines=['The enemy fleet is massing. I have never seen so many contacts.','Every sensor we have is pointed at Sector 7-Gamma.','Stand by, pilot. The Admiral will see you now.'],cols=[0x2e6fd8,0x3a8f5a,0x5a3a8a];
+  for(let i=0;i<7;i++){
+    const th=Math.PI*(1.05+i*.15),x=cx+Math.cos(th)*17,z=cz+Math.sin(th)*17,ry=Math.atan2(cx-x,cz-z);
+    const cg=new THREE.Group();cg.position.set(x,0,z);cg.rotation.y=ry;g.add(cg);
+    add(new THREE.BoxGeometry(6,1.2,2),dark,0,.6,0,null,cg);
+    add(new THREE.BoxGeometry(5,1.5,.1),new THREE.MeshBasicMaterial({color:0x147f8f}),0,2,-.3,[-.4,0,0],cg);
+    if(i%2){const wx=cx+Math.cos(th)*19.6,wz=cz+Math.sin(th)*19.6,f=crewFigure(cols[(i>>1)%3],0x1a2a4a);f.position.set(wx,0,wz);f.rotation.y=ry+Math.PI;g.add(f);
+      seq.crew.push(makeCrewState(f,wx,wz,lines[(i>>1)%3],'station'));f.rotation.y=ry+Math.PI}
+  }
+  add(new THREE.BoxGeometry(36,5,.3),new THREE.MeshBasicMaterial({color:0x0c3a5a}),cx,3.4,FOZ+FT+.4);
+  const N=120,pos=new Float32Array(N*3);for(let i=0;i<N;i++){pos[i*3]=cx+(Math.random()-.5)*34;pos[i*3+1]=1.2+Math.random()*4.4;pos[i*3+2]=FOZ+FT+.6}
+  const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  g.add(new THREE.Points(sg,new THREE.PointsMaterial({size:.25,color:0xcfe6ff})));
+}
+
+function buildGalaxyHolo(g,x,y,z){
+  const gr=new THREE.Group();gr.position.set(x,y,z);gr.scale.setScalar(.8);g.add(gr);seq.galaxy=gr;
+  const N=2600,pos=new Float32Array(N*3),col=new Float32Array(N*3),c1=new THREE.Color(0xffe6a0),c2=new THREE.Color(0x66b8ff);
+  for(let i=0;i<N;i++){const arm=i%3,r=Math.pow(Math.random(),.65)*5,a=arm*2.094+r*.85+(Math.random()-.5)*.5;
+    pos[i*3]=Math.cos(a)*r;pos[i*3+1]=(Math.random()-.5)*.6*(1-r/6);pos[i*3+2]=Math.sin(a)*r;
+    const c=c1.clone().lerp(c2,r/5);col.set([c.r,c.g,c.b],i*3)}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  gr.add(new THREE.Points(geo,new THREE.PointsMaterial({size:.12,vertexColors:true,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false})));
+  gr.add(new THREE.Mesh(new THREE.SphereGeometry(.45,12,10),new THREE.MeshBasicMaterial({color:0xfff2c0,transparent:true,opacity:.8})));
+  const mk=(c,x2,z2)=>{const m=new THREE.Mesh(new THREE.OctahedronGeometry(.28),new THREE.MeshBasicMaterial({color:c}));m.position.set(x2,.1,z2);gr.add(m);return m};
+  gr.userData.pulse=[mk(0x44ff88,-2.2,1.6),mk(0xff3030,2.8,-1.9)];
+  gr.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-2.2,.1,1.6),new THREE.Vector3(2.8,.1,-1.9)]),new THREE.LineBasicMaterial({color:0xffd36e})));
+  const ring=new THREE.Mesh(new THREE.RingGeometry(5.3,5.45,64),new THREE.MeshBasicMaterial({color:0x76efff,transparent:true,opacity:.5,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;gr.add(ring);
+  gr.add(new THREE.PointLight(0x66e0ff,1.2,30));
+}
+
+function launchCh6(){
+  const s=seq;
+  s.objs.forEach(o=>scene.remove(o));s.objs=[];
+  if(s.fogOld)scene.fog.far=s.fogOld;
+  camera.far=600;camera.updateProjectionMatrix();
+  ['barT','barB','sub','skip'].forEach(id=>{$(id).style.display='none'});
+  document.getElementById('flash').style.opacity=0;
+  player.rotation.set(0,0,0);
+  seq=null;
+  startCh6Fight();
+}
+
+function startCh6Fight(){
+  mode='dogfight';capital=false;story=false;squad=true;missionMode='gamma';
+  CAPLV=Object.assign({},CAPLEVELS[1],{label:'Gamma',tf:2.4,sp:.2,reward:0});
+  DF=Object.assign({},DIFFS.normal,{act:3,total:9999,pay:1,ally:9});
+  start();
+}
+
+function gammaSetup(){
+  dog.alert=false;DF.act=3;dog.bossTitle='ENEMY DREADNOUGHT';dog.bossLbl='Reactor and engines';
+  [[-260,30,-130],[260,-30,-110]].forEach(([x,y,z],i)=>{const m=makeWedgeShip(200,90,12,0x8a8f98,true);m.rotation.y=Math.PI;m.position.set(x,y,z);scene.add(m);dog.caps.push({mesh:m,hp:800,max:800,side:'e',name:'Destroyer '+(i+4),dead:false,cd:1+Math.random()*2,rate:2,dmg:26,pcd:1+Math.random()*2,script:false})});
+  const lose=(name,line,who)=>()=>{const c=dog.caps.find(x=>x.name===name);if(c&&!c.dead){c.script=true;killCap(c);dsay(who,line)}};
+  dog.tl=[
+    {t:0,fn:()=>dsay('ADMIRAL','All fleet units, weapons free! Hit them before they wake up!')},
+    {t:9,fn:()=>dsay('FLEET','They have not even raised their shields! Keep firing!')},
+    {t:22,fn:lose('Destroyer 1','First enemy destroyer down! They are caught completely off guard!','FLEET')},
+    {t:34,fn:()=>{dog.alert=true;DF.act=9;sfxAlarm();dsay('SENSORS','The enemy fleet is waking up! Fighters are launching and their guns are charging!')}},
+    {t:60,fn:lose('Destroyer 2','Second destroyer destroyed! Their line is breaking!','COMMAND')},
+    {t:78,fn:lose('Valiant','The Valiant is hit and going down! Cover the fleet!','FLEET')},
+    {t:100,fn:lose('Destroyer 3','Third destroyer destroyed! Finish the dreadnought!','COMMAND')}
+  ];
+}
+
+// ---- inside debriefStep(dt): the Admiral's map room briefing ----
+  if(s.ch6){
+    seqLines([
+      [0,'ADMIRAL','Welcome aboard the Resolute, pilot. Good work out there.'],
+      [4,'ADMIRAL','The coordinates you pulled from that ghost ship show where the enemy fleet is hiding.'],
+      [9,'ADMIRAL','This is the galaxy. We are here, in green. The enemy is gathering in Sector 7-Gamma, in red.'],
+      [15,'ADMIRAL','They are massing for something big. We have to hit them before they are ready.'],
+      [20,'YOU','Understood, Admiral. Where do we start?']
+    ]);
+    if(s.t>=24)startHyper();
+    return;
+  }
+
+// ===== HOOKS: lines added inside existing code (one per line, trimmed) =====
+// const cm=crewFigure(0xd8dce6,0xf2f2f8);cm.position.set(seq.ch6?tcx(4):seq.ch3?tcx(12):tcx(14),0,seq.ch6?tcz(4):seq.ch3?tcz(4):tcz(1));g.add(cm);
+// seq.cmd=seq.ch6?{x:tcx(4),z:tcz(4),mesh:cm}:seq.ch3?{x:tcx(12),z:tcz(4),mesh:cm}:{x:tcx(14),z:tcz(1),mesh:cm};
+// seq.crew.push(makeCrewState(f,tcx(c),tcz(r),seq.phase==='run'?['Good luck, pilot!','Go! We will hold this room!','Your fighter is waiting. Run!','May the stars guide you.'][i]:(seq.ch6?'The Admiral is waiting by the star map, pilot.':'Pilots, take a position. The commander will brief us.'),'idle'));f.rotation.y=Math.atan2(tcx(12)-tcx(c),tcz(5)-tcz(r));
+// if(seq.ch6){g.remove(hg);buildGalaxyHolo(g,tcx(12),2.6,tcz(5))}
+// fpsG=(seq.ch6?fpsBuildMap6():seq.ch3?fpsBuildMap3():seq.ch2?fpsBuildMap2():fpsBuildMap());fDoors={};
+// if(seq.ch2)buildCrew(g);if(seq.ch6)buildMapRoom(g);else if(seq.ch3)buildDebrief(g);
+// seq.px=seq.ch6?tcx(4):seq.ch3?(run?tcx(11):tcx(17)):seq.ch2?tcx(4):tcx(2);
+// seq.pz=seq.ch6?tcz(12):seq.ch3?(run?tcz(5):tcz(12)):seq.ch2?tcz(12):tcz(2);
+// seq.goal=seq.ch6?[7,4]:seq.ch3?(run?[3,12]:[12,6]):seq.ch2?[15,1]:[3,12];
+// seq.pitch=0;seq.yaw=seq.ch6?-Math.PI/2:seq.ch3?(run?-Math.PI/2:0):-Math.PI/2;}seq.cp={x:seq.px,z:seq.pz,yaw:seq.yaw};
+// if(s.ch6){
+// if(t>=22){if(s.ch6)launchCh6();else startRun()}
+// $('objective').textContent=s.ch3?(s.phase==='run'?'Run to the hangar! Board your fighter':(s.ch6?'Report to the map room':'Report to the debriefing room')):s.ch2?'Report to the bridge \u00b7 follow the dotted path':'Escape the Dominator \u00b7 follow the dotted path to the hangar';
+// if(dog.mission==='gamma'&&c.side==='e'&&!dog.alert)continue;
+// mode='dogfight';capital=false;story=false;squad=true;missionMode='gamma';
+// const hp=100+25*P.shields+(capital?100:(missionMode==='ashfall'||missionMode==='gamma')?100:missionMode?50:0);
+// for(let i=0;i<(capital?0:(missionMode==='ashfall'||missionMode==='gamma')?0:missionMode?10:32);i++){const a=Math.random()*6.28,d=90+Math.random()*600,x=Math.cos(a)*d,z=Math.sin(a)*d;
+// if(capital)buildCapital();if(missionMode==='nightfall')buildShipyard();else if(missionMode==='ashfall')buildAshfall();else if(missionMode==='gamma'){buildAshfall();gammaSetup()}if(squad)spawnAllies();
+// else if(won&&dog.mission==='gamma'){SAVE.story=SAVE.story||{};if(!SAVE.story.ch6){SAVE.story.ch6=true;SAVE.story.date6=new Date().toLocaleDateString('en-CA');SAVE.credits+=700;earned+=700}saveGame()}
+// $('overTitle').textContent=won?(dog.mission==='gamma'?'Chapter 6 complete':dog.mission==='ashfall'?'Chapter 3 complete':dog.mission?'Chapter 2 complete':story?'Chapter 1 complete':'Arena cleared!'):'Shot down';
+// if(dog.mission==='ashfall'||dog.mission==='gamma')ashStep(dt);
+// if(tp.dead||tp.kind!=='turret'||(dog.mission==='gamma'&&!dog.alert))continue;
+// if(state==='playing'&&dog.mission&&dog.parts.filter(x=>x.kind==='gen').every(x=>x.dead)){if(dog.mission==='ashfall'||dog.mission==='gamma')warshipBlast();dogEnd(true)}
+// $('objective').textContent=dog.mission==='gamma'?'Chapter 6: Strike on Sector 7-Gamma':dog.mission==='ashfall'?'Chapter 3: Battle of Ashfall':dog.mission?'Operation Nightfall':dog.cap?'Capital Ship Assault ('+CAPLV.label+')':'Dogfight ('+DF.label+') · Enemies left '+(dog.total-dog.kills);
+// <div class="card" style="width:100%;max-width:420px;margin-top:8px"><div style="flex:1"><b>Chapter 6</b><small id="storyCh6"></small></div><div class="buy"><button id="playCh6">Play Chapter 6</button></div></div>
+// $('playCh6').onclick=()=>{$('story').classList.add('hide');startCh6()};
+// $('storyCh6').textContent=!st.ch5?'Locked. Finish Chapter 5 first.':(st.ch6?'Complete'+(st.date6?' on '+st.date6:''):'Report to the map room on the Resolute');$('playCh6').textContent=st.ch6?'Replay Chapter 6':'Play Chapter 6';$('playCh6').disabled=!st.ch5;
+// const sbn=$('storyBtn');if(sbn)sbn.textContent=(SAVE.story&&SAVE.story.ch6)?'Story mode (Ch.6 done)':(SAVE.story&&SAVE.story.ch5)?'Story mode (Ch.5 done)':(SAVE.story&&SAVE.story.ch4)?'Story mode (Ch.4 done)':(SAVE.story&&SAVE.story.ch3)?'Story mode (Ch.3 done)':(SAVE.story&&SAVE.story.ch2)?'Story mode (Ch.2 done)':(SAVE.story&&SAVE.story.ch1)?'Story mode (Ch.1 done)':'Story mode';
